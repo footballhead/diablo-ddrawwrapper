@@ -43,41 +43,20 @@ Press Print Screen to take a screenshot, it will be saved in the game run direct
 
 DirectDraw functions actually used by the game are implemented in a minimalist way. Many unused functions are partially implemented and commented for future development, some are left as unimplemented. This is not in any way a complete implementation of the DirectDraw library.
 
-## Build Instructions
-
-Required For Building
-* Visual C++ Express 2010 or newer
-* [DirectX SDK](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
-* [Microsoft Detours Library](https://www.microsoft.com/en-us/research/project/detours/)
-
-Successfully built and tested with Microsoft Visual Studio Community 2017
-
-Note: Default project copies ddraw.dll into C:\Diablo on compile
-
-### Notes for Visual Studio 2019 Community Edition (Windows 10)
+## Build Instructions (Visual Studio 2019)
 
 First, install [DirectX SDK](https://www.microsoft.com/en-us/download/details.aspx?id=6812).
 
 > If you get error S1023, see [this support topic](https://support.microsoft.com/en-ca/help/2728613/s1023-error-when-you-install-the-directx-sdk-june-2010)
 
-Second, build Detours:
+Second, build ddrawwrapper:
 
-1. Clone https://github.com/microsoft/Detours
-2. Launch _Developer Command Prompt for VS 2019_
-3. cd into cloned directory
-4. `nmake`
-
-Third, build ddrawwrapper
-
-1. Clone this repo
+1. Clone this repo **recursively** (to get Detours submodule). If you don't clone recursively then the build will fail.
 2. Open `Project/ddrawwrapper.sln` in VS 2019
-3. In the _Solution Explorer_ panel, right-click `ddrawwrapper` and select _Properties_ from the drop-down
-4. Go to _C++_ > _General_ > _Additional Include Directories_ and add `<your detours checkout>/include`
-5. Go to _Linker_ > _General_ > _Additional Library Directories_ and add `<your detours checkout>/lib.x86`
-6. Click _OK_
-7. Make sure `C:\Diablo` exists
+3. Make sure `C:\Diablo` exists. The build output is copied there for convenience, but if it can't copy then the build will fail.
+4. Build all
 
-Then, build!
+Detours is built as a Pre-Build event.
 
 ### Debugging in VS 2019 CE
 
