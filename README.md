@@ -60,9 +60,4 @@ Detours is built as a Pre-Build event.
 
 ### Debugging in VS 2019 CE
 
-1. In the _Solution Explorer_ panel, right-click `ddrawwrapper` and select _Properties_ from the drop-down
-2. Go to _Debugging_ > _Command_ and set it to "C:\Diablo\Diablo.exe"
-3. Go to _Debugging_ > _Working Directory_ and set it to "C:\Diablo"
-4. Click _OK_
-5. Set up your breakpoints
-6. On the top bar, click the green arrow _Local Windows Debugger_
+Debugging and breakpoints should work out-of-the-box, provided C:\Diablo\Diablo.exe exists.
