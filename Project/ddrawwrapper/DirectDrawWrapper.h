@@ -137,8 +137,8 @@ private:
 	LPD3DXSPRITE d3dSprite;
 	LPDIRECT3DTEXTURE9 menuTexture;
 	int curMenuFrame;
-	int menuLocations[5];
-	RECT menuSprites[18];
+	int menuLocations[6];
+	RECT menuSprites[19];
 
     // Flags and settings
 	BOOL inMenu;
@@ -153,6 +153,7 @@ private:
 
 	bool menuWindowed;
 	bool menuvSync;
+	bool menuCaptureMouse;
 
 	// Last window position
 	POINT lastPosition;

@@ -925,11 +925,13 @@ IDirectDrawWrapper::IDirectDrawWrapper()
 	d3dSprite = NULL;
 	menuTexture = NULL;
 	curMenuFrame = 0;
-	menuLocations[0] = 117;
-	menuLocations[1] = 162;
-	menuLocations[2] = 208;
-	menuLocations[3] = 253;
-	menuLocations[4] = 298;
+	// All text elements are 40px apart
+	menuLocations[0] = 110;
+	menuLocations[1] = 150;
+	menuLocations[2] = 190;
+	menuLocations[3] = 230;
+	menuLocations[4] = 270;
+	menuLocations[5] = 310;
 	//0
 	menuSprites[0].left = 0;
 	menuSprites[0].top = 0;
@@ -1020,6 +1022,11 @@ IDirectDrawWrapper::IDirectDrawWrapper()
 	menuSprites[17].top = 256;
 	menuSprites[17].right = 295;
 	menuSprites[17].bottom = 356;
+	//CAPTURE MOUSE:
+	menuSprites[18].left = 0;
+	menuSprites[18].top = 398;
+	menuSprites[18].right = 336;
+	menuSprites[18].bottom = 428;
 
 	inMenu = false;
 	curMenu = 0;
@@ -1444,11 +1451,34 @@ HRESULT IDirectDrawWrapper::Present()
 			d3dSprite->Draw(menuTexture, &menuSprites[15], NULL, &pos, 0xFFFFFFFF);
 		}
 
-		// ACCEPT
-		pos.x = (640 - menuSprites[14].right) / 2;
+		// CAPTURE MOUSE:
+		pos.x = (640 - (menuSprites[18].right + (menuSprites[16].right - menuSprites[16].left) + 10)) / 2;
 		pos.y = menuLocations[4];
 		// Set location for menu selection marker
-		if(curMenu == 3)
+		if (curMenu == 3)
+		{
+			selectionLeft = pos.x - 52;
+			selectionRight = pos.x + menuSprites[18].right + (menuSprites[16].right - menuSprites[16].left) + 20;
+		}
+		d3dSprite->Draw(menuTexture, &menuSprites[18], NULL, &pos, 0xFFFFFFFF);
+		// OFF
+		if (!menuCaptureMouse)
+		{
+			pos.x += menuSprites[18].right + 10;
+			d3dSprite->Draw(menuTexture, &menuSprites[16], NULL, &pos, 0xFFFFFFFF);
+		}
+		// ON
+		else
+		{
+			pos.x += menuSprites[18].right + 10 + 14;
+			d3dSprite->Draw(menuTexture, &menuSprites[15], NULL, &pos, 0xFFFFFFFF);
+		}
+
+		// ACCEPT
+		pos.x = (640 - menuSprites[14].right) / 2;
+		pos.y = menuLocations[5];
+		// Set location for menu selection marker
+		if(curMenu == 4)
 		{
 			selectionLeft = pos.x - 52;
 			selectionRight = pos.x + menuSprites[14].right + 10;
@@ -1516,6 +1546,7 @@ BOOL IDirectDrawWrapper::MenuKey(WPARAM vKey)
 			// Init to current settings
 			menuWindowed = isWindowed;
 			menuvSync = vSync;
+			menuCaptureMouse = captureMouse;
 			menuWindowedResolution = 0;
 			menuFullscreenResolution = 0;
 			for(int i = 0; i < windowedResolutionCount; i++)
@@ -1548,13 +1579,13 @@ BOOL IDirectDrawWrapper::MenuKey(WPARAM vKey)
 	else if(vKey == VK_DOWN)
 	{
 		curMenu++;
-		if(curMenu > 3) curMenu = 0;
+		if(curMenu > 4) curMenu = 0;
 		Present();
 	}
 	else if(vKey == VK_UP)
 	{
 		curMenu--;
-		if(curMenu < 0) curMenu = 3;
+		if(curMenu < 0) curMenu = 4;
 		Present();
 	}
 	else if(vKey == VK_RIGHT)
@@ -1585,6 +1616,10 @@ BOOL IDirectDrawWrapper::MenuKey(WPARAM vKey)
 				menuvSync = false;
 			else
 				menuvSync = true;
+		}
+		else if (curMenu == 3)
+		{
+			menuCaptureMouse = !menuCaptureMouse;
 		}
 		Present();
 	}
@@ -1617,6 +1652,10 @@ BOOL IDirectDrawWrapper::MenuKey(WPARAM vKey)
 			else
 				menuvSync = true;
 		}
+		else if (curMenu == 3)
+		{
+			menuCaptureMouse = !menuCaptureMouse;
+		}
 		Present();
 	}
 	else if(vKey == VK_RETURN)
@@ -1647,6 +1686,10 @@ BOOL IDirectDrawWrapper::MenuKey(WPARAM vKey)
 			displayHeightFullscreen = displayHeight;
 		}
 		vSync = menuvSync;
+		captureMouse = menuCaptureMouse;
+		if (!captureMouse) {
+			ClipCursor(NULL);
+		}
 		AdjustWindow();
 		CreateD3DDevice();
 		CreateSurfaceTexture();
