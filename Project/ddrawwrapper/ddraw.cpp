@@ -167,6 +167,19 @@ LRESULT CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			break;
     }
+
+	// If focused then prevent cursor from leaving window.
+	// I would have expected to only call ClipCursor once but I guess we have to call it every tick...
+	if (GetFocus() == hwnd && lpDD->captureMouse) {
+		// Even though these points are hardcoded, they seem to work regardless of the chosen resolution
+		POINT topLeft = { 0, 0 };
+		POINT bottomRight = { 640, 480 };
+		if (ClientToScreen(hwnd, &topLeft) && ClientToScreen(hwnd, &bottomRight)) {
+			RECT clientBoundsInScreenCoords = { topLeft.x, topLeft.y, bottomRight.x, bottomRight.y };
+			ClipCursor(&clientBoundsInScreenCoords);
+		}
+	}
+
 	// Call original windiow proc by default
     return CallWindowProc(lpDD->lpPrevWndFunc, hwnd, message, wParam, lParam);
 }
@@ -250,6 +263,8 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 		// Do nothing on thread detach
 		break;
 	case DLL_PROCESS_DETACH:		
+		ClipCursor(NULL);
+
 		// Delete DirectDrawWrapper object
 		delete lpDD;
 

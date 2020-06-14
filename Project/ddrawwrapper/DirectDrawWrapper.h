@@ -111,6 +111,8 @@ public:
 	UINT displayWidthFullscreen;
 	UINT displayHeightFullscreen;
 
+	bool captureMouse;
+
 // Custom functions and variables
 private:
 	// Helper function to set window mode to match display mode

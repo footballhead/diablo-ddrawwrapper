@@ -1138,6 +1138,16 @@ IDirectDrawWrapper::IDirectDrawWrapper()
 		refreshRate = 60;
 	}
 
+	GetPrivateProfileString(TEXT("input"), TEXT("captureMouse"), TEXT("1"), temp, 1024, filename);
+	if (temp[0] == TEXT('1'))
+	{
+		captureMouse = true;
+	}
+	else
+	{
+		captureMouse = false;
+	}
+
 	// Load settings from registry or ini file or set defaults
 	lastPosition.x = 100;
 	lastPosition.y = 100;
@@ -1665,6 +1675,9 @@ BOOL IDirectDrawWrapper::MenuKey(WPARAM vKey)
 		temp[0] = '\0';
 		wsprintf(temp, TEXT("%d"), vSync ? 1 : 0);
 		WritePrivateProfileString(TEXT("video"), TEXT("vsync"), temp, filename);
+		temp[0] = '\0';
+		wsprintf(temp, TEXT("%d"), captureMouse ? 1 : 0);
+		WritePrivateProfileString(TEXT("input"), TEXT("captureMouse"), temp, filename);
 	}
 
 	return inMenu;
