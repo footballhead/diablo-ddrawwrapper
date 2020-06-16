@@ -1814,8 +1814,7 @@ void IDirectDrawWrapper::AdjustWindow()
     // window mode
 	if(isWindowed)
 	{
-		// Window with border/caption
-		SetWindowLong(hWnd, GWL_STYLE, WS_VISIBLE | WS_CAPTION);
+		SetWindowLong(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
 		// Set window size
 		SetWindowPos(hWnd, NULL, 0, 0, displayWidth, displayHeight, SWP_NOMOVE | SWP_NOZORDER);
 		// Adjust for window decoration to ensure client area matches display size
