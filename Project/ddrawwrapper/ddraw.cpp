@@ -242,6 +242,7 @@ auto const DRLG_L2PlaceMiniSet = reinterpret_cast<BOOL(__fastcall*)(BYTE * minis
 auto const GiveGoldCheat = reinterpret_cast<void(__fastcall*)(void)>(0x0042CB9C);
 auto const MaxSpellsCheat = reinterpret_cast<void(__fastcall*)(void)>(0x0042CF13);
 auto const NextPlrLevel = reinterpret_cast<void(__fastcall*)(int)>(0x0046B9CC);
+auto const StartGame = reinterpret_cast<BOOL (__fastcall*)(BOOL, BOOL)>(0x00490F61);
 
 auto const currlevel = reinterpret_cast<BYTE* const>(0x0057CDA8);
 auto const USTAIRS = reinterpret_cast<BYTE* const>(0x004DA5C8);
@@ -250,6 +251,13 @@ auto const DSTAIRS = reinterpret_cast<BYTE* const>(0x004DA5F0);
 auto const ViewY = reinterpret_cast<DWORD* const>(0x00590B18);
 auto const ViewX = reinterpret_cast<DWORD* const>(0x00590B1C);
 auto const myplr = reinterpret_cast<int* const>(0x0062D88C);
+auto const gszHero = reinterpret_cast<char* const>(0x0061D630);
+auto const gbMaxPlayers = reinterpret_cast<BYTE* const>(0x006000E0);
+
+HMODULE diabloui_dll = NULL;
+// The void*s are functions but the actual signatures shouldn't matter
+// Since the entire diabloui.dll is loaded in memory, we can just call the address without having to GetProcAddress it
+auto const UiSelHeroSingDialog = reinterpret_cast<BOOL(__stdcall *)(void*, void*, void*, void*, int*, char*)>(0x100070E0);
 
 // This is from devilution with some beta-specific modifications
 // entry is a param to the calling function
@@ -297,6 +305,28 @@ void __fastcall z_hook()
 	NextPlrLevel(*myplr);
 }
 
+void __fastcall singleplayer_menu_hook()
+{
+	int dlgresult;
+	printf("Single player!\n");
+	/*UiSelHeroSingDialog(
+		pfile_ui_set_hero_infos,
+		pfile_ui_save_create,
+		pfile_delete_save,
+		pfile_ui_set_class_stats,
+		&dlgresult,
+		gszHero)*/
+	*gbMaxPlayers = 1;
+	if (!UiSelHeroSingDialog((void*)0x00436E74, (void*)0x004372AA, (void*)0x004374EA, (void*)0x00437209, &dlgresult, gszHero)) {
+		MessageBox(NULL, TEXT("UiSelHeroSingDialog failed"), TEXT("Error"), 0);
+		ExitProcess(0);
+	}
+	printf("dlgresult=%d\n", dlgresult);
+	if (dlgresult == 2) {
+		StartGame(TRUE, TRUE);
+	}
+}
+
 // Main dll entry
 BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
@@ -334,6 +364,11 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 
 		// Allow using catacombs warp in single player by noping multi-player check
 		nop(0x0047B6C2, 0x0047B6D2);
+
+		// nop old single player button behavor
+		nop(0x0043A21B, 0x0043A228);
+		// Make single player option call our func
+		patch_call(0x0043A21B, singleplayer_menu_hook);
 
 		// diabloui modification
 		// Make Single Player text gold instead of gray
