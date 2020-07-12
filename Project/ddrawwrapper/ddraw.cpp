@@ -199,6 +199,18 @@ bool patch(unsigned __int32 addr_to_patch, T const& new_val)
 	return true;
 }
 
+bool nop(unsigned __int32 address_start, unsigned __int32 address_end)
+{
+	DWORD oldProtect = 0;
+	if (!VirtualProtect((void*)address_start, address_end - address_start, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+		printf("%s: failed to mark address +xrw: 0x%X\n", __func__, address_start);
+		return false;
+	}
+	// Do the actual patch
+	memset((void*)address_start, 0x90, address_end - address_start);
+	return true;
+}
+
 // Main dll entry
 BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
@@ -212,6 +224,12 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 		// Change CD parameter on SFileOpenArchive from 1 to 0.
 		// Requires modifying push 1 to push 0
 		patch<unsigned __int8>(0x0042DD55 + 1, 0);
+
+		// diabloui modification
+		// Make Single Player text gold instead of gray
+		patch<unsigned __int8>(0x100034E4 + 1, 6);
+		// Allow it to be selectable by noping the code that disables it
+		nop(0x100034F4, 0x10003505);
 
 		// Store module handle
 		hMod = hModule;
