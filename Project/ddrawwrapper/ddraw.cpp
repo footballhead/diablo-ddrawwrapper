@@ -186,7 +186,7 @@ LRESULT CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 // From Pre-ablo
 template <typename T>
-bool patch(unsigned __int32 addr_to_patch, T const& new_val)
+bool patch(DWORD addr_to_patch, T const& new_val)
 {
 	// If we don't turn the .text address to be PAGE_EXECUTE_READWRITE then the game crashes
 	DWORD oldProtect = 0;
@@ -199,7 +199,8 @@ bool patch(unsigned __int32 addr_to_patch, T const& new_val)
 	return true;
 }
 
-bool nop(unsigned __int32 address_start, unsigned __int32 address_end)
+// From Pre-ablo
+bool nop(DWORD address_start, unsigned __int32 address_end)
 {
 	DWORD oldProtect = 0;
 	if (!VirtualProtect((void*)address_start, address_end - address_start, PAGE_EXECUTE_READWRITE, &oldProtect)) {
@@ -207,8 +208,82 @@ bool nop(unsigned __int32 address_start, unsigned __int32 address_end)
 		return false;
 	}
 	// Do the actual patch
-	memset((void*)address_start, 0x90, address_end - address_start);
+	memset((void*)address_start, 0x90, address_end - address_start); // 0x90 is single byte NOP
 	return true;
+}
+
+// From Pre-abo
+template <typename T>
+bool patch_call(DWORD address, T fn)
+{
+	DWORD oldProtect = 0;
+	if (!VirtualProtect((void*)address, 5, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+		printf("%s: failed to mark address +xrw: 0x%X\n", __func__, address);
+		return false;
+	}
+	*(BYTE*)(address) = 0xE8; // relative call opcode
+	*(DWORD*)(address + 1) = reinterpret_cast<DWORD>(fn) - (address + 5);
+	return true;
+}
+
+// From Pre-ablo
+bool patch_bytes(DWORD address, BYTE const* patch, size_t size)
+{
+	DWORD oldProtect = 0;
+	if (!VirtualProtect((void*)address, size, PAGE_EXECUTE_READWRITE, &oldProtect)) {
+		printf("%s: failed to mark address +xrw: 0x%X\n", __func__, address);
+		return false;
+	}
+	memcpy((void*)address, patch, size);
+	return true;
+}
+
+auto const DRLG_L2PlaceMiniSet = reinterpret_cast<BOOL(__fastcall*)(BYTE * miniset, int tmin, int tmax, int cx, int cy, BOOL setview, int ldir)>(0x0047C790);
+
+auto const currlevel = reinterpret_cast<BYTE* const>(0x0057CDA8);
+auto const USTAIRS = reinterpret_cast<BYTE* const>(0x004DA5C8);
+auto const WARPSTAIRS = reinterpret_cast<BYTE* const>(0x004DA618);
+auto const DSTAIRS = reinterpret_cast<BYTE* const>(0x004DA5F0);
+auto const ViewY = reinterpret_cast<DWORD* const>(0x00590B18);
+auto const ViewX = reinterpret_cast<DWORD* const>(0x00590B1C);
+
+// This is from devilution with some beta-specific modifications
+// entry is a param to the calling function
+BOOL __fastcall catacombs_stairs_fix(int entry)
+{
+	// This is a local from the calling function... so we 
+	BOOL doneflag;
+	if (entry == 0) {
+		doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, 1, 0);
+		if (doneflag) {
+			doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, 0, 1); // This is an addition and why we needed to redirect to our own function
+			if (doneflag && *currlevel == 5) {
+				doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, 0, 6);
+			}
+		}
+		(*ViewY)++; // Different
+	}
+	else if (entry == 1) {
+		doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, 0, 0);
+		if (doneflag) {
+			doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, 1, 1); // This is an addition and why we needed to redirect to our own function
+			if (doneflag && *currlevel == 5) {
+				doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, 0, 6);
+			}
+		}
+		(*ViewX)++; // Different
+	}
+	else {
+		doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, 0, 0);
+		if (doneflag) {
+			doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, 0, 1); // This is an addition and why we needed to redirect to our own function
+			if (doneflag && *currlevel == 5) {
+				doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, 1, 6);
+			}
+		}
+		(*ViewY)++; // Different
+	}
+	return doneflag;
 }
 
 // Main dll entry
@@ -219,15 +294,27 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 	switch (ul_reason_for_call)
 	{
 	// Initial process attach
-	case DLL_PROCESS_ATTACH:
+	case DLL_PROCESS_ATTACH: {
 		// Remove CD requirement, allowing local DIABDAT.MPQ
 		// Change CD parameter on SFileOpenArchive from 1 to 0.
 		// Requires modifying push 1 to push 0
-		patch<unsigned __int8>(0x0042DD55 + 1, 0);
+		patch<BYTE>(0x0042DD55 + 1, 0);
+
+		// Generate stairs down in catacombs
+		// Remove old code
+		nop(0x0048118C, 0x004812B2);
+		// Prepare to call our code
+		constexpr BYTE mov_ecx_entry[] = { 0x8B, 0x4D, 0xF0 };
+		patch_bytes(0x0048118C, mov_ecx_entry, sizeof(mov_ecx_entry));
+		// call our code
+		patch_call(0x0048118C + sizeof(mov_ecx_entry), catacombs_stairs_fix);
+		// Store return value
+		constexpr BYTE mov_doneflag_eax[] = { 0x89, 0x45, 0xFC };
+		patch_bytes(0x0048118C + sizeof(mov_ecx_entry) + 5, mov_doneflag_eax, sizeof(mov_doneflag_eax));
 
 		// diabloui modification
 		// Make Single Player text gold instead of gray
-		patch<unsigned __int8>(0x100034E4 + 1, 6);
+		patch<BYTE>(0x100034E4 + 1, 6);
 		// Allow it to be selectable by noping the code that disables it
 		nop(0x100034F4, 0x10003505);
 
@@ -236,36 +323,36 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 
 		// Set default variables
 		debugLevel = 0;
-   		debugDisplay = -1;
+		debugDisplay = -1;
 
 		// Set time start
 		start_time = GetTickCount();
 
 		// Not in menu to start
 		inMenu = false;
-		
-        // Retrieve command line arguments
-		LPWSTR *szArgList;
+
+		// Retrieve command line arguments
+		LPWSTR* szArgList;
 		int argCount;
 		szArgList = CommandLineToArgvW(GetCommandLine(), &argCount);
-		
-        // If arguments
-        if(szArgList != NULL)
+
+		// If arguments
+		if (szArgList != NULL)
 		{
-			for(int i = 0; i < argCount; i++)
+			for (int i = 0; i < argCount; i++)
 			{
-                // If debug
-				if(wcscmp(szArgList[i], L"/ddrawdebug") == 0) {
+				// If debug
+				if (wcscmp(szArgList[i], L"/ddrawdebug") == 0) {
 					debugDisplay = 0;
 					debugLevel = 2;
 					// Create the debug console
 					AllocConsole();
 					// Redirect stdout to console
-					freopen( "CONOUT$", "wb", stdout);
+					freopen("CONOUT$", "wb", stdout);
 					break;
 				}
-                // If ddrawlog
-				else if(wcscmp(szArgList[i], L"/ddrawlog") == 0) {
+				// If ddrawlog
+				else if (wcscmp(szArgList[i], L"/ddrawlog") == 0) {
 					debugDisplay = 1;
 					debugLevel = 2;
 					// Redireect stdout to file
@@ -279,21 +366,22 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 			}
 		}
 		LocalFree(szArgList);
-        
+
 		// Hook setcursorpos
 		DetourRestoreAfterWith();
-        DetourTransactionBegin();
-        DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)TrueSetCursorPos, OverrideSetCursorPos);
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)TrueSetCursorPos, OverrideSetCursorPos);
 		//DetourAttach(&(PVOID&)TrueLoadLibraryA, OverrideLoadLibraryA);
-        error = DetourTransactionCommit();
-        if (error == NO_ERROR) {
-            debugMessage(2, "DllMain(DLL_PROCESS_ATTACH)", "Successfully detoured SetCursorPos");
-        }
-        else {
-            debugMessage(1, "DllMain(DLL_PROCESS_ATTACH)", "Failed to detour SetCursorPos");
-        }
+		error = DetourTransactionCommit();
+		if (error == NO_ERROR) {
+			debugMessage(2, "DllMain(DLL_PROCESS_ATTACH)", "Successfully detoured SetCursorPos");
+		}
+		else {
+			debugMessage(1, "DllMain(DLL_PROCESS_ATTACH)", "Failed to detour SetCursorPos");
+		}
 		break;
+	}
 	case DLL_THREAD_ATTACH:
 		// Do nothing on thread attach
 		break;
