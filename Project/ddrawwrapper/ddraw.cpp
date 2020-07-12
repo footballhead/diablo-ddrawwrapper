@@ -332,6 +332,9 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 		// Make MaxSpellsCheat give all the spells (by removing "can learn" check)
 		nop(0x0042CF35, 0x0042CF49);
 
+		// Allow using catacombs warp in single player by noping multi-player check
+		nop(0x0047B6C2, 0x0047B6D2);
+
 		// diabloui modification
 		// Make Single Player text gold instead of gray
 		patch<BYTE>(0x100034E4 + 1, 6);
