@@ -239,6 +239,9 @@ bool patch_bytes(DWORD address, BYTE const* patch, size_t size)
 }
 
 auto const DRLG_L2PlaceMiniSet = reinterpret_cast<BOOL(__fastcall*)(BYTE * miniset, int tmin, int tmax, int cx, int cy, BOOL setview, int ldir)>(0x0047C790);
+auto const GiveGoldCheat = reinterpret_cast<void(__fastcall*)(void)>(0x0042CB9C);
+auto const MaxSpellsCheat = reinterpret_cast<void(__fastcall*)(void)>(0x0042CF13);
+auto const NextPlrLevel = reinterpret_cast<void(__fastcall*)(int)>(0x0046B9CC);
 
 auto const currlevel = reinterpret_cast<BYTE* const>(0x0057CDA8);
 auto const USTAIRS = reinterpret_cast<BYTE* const>(0x004DA5C8);
@@ -246,6 +249,7 @@ auto const WARPSTAIRS = reinterpret_cast<BYTE* const>(0x004DA618);
 auto const DSTAIRS = reinterpret_cast<BYTE* const>(0x004DA5F0);
 auto const ViewY = reinterpret_cast<DWORD* const>(0x00590B18);
 auto const ViewX = reinterpret_cast<DWORD* const>(0x00590B1C);
+auto const myplr = reinterpret_cast<int* const>(0x0062D88C);
 
 // This is from devilution with some beta-specific modifications
 // entry is a param to the calling function
@@ -288,7 +292,9 @@ BOOL __fastcall catacombs_stairs_fix(int entry)
 
 void __fastcall z_hook()
 {
-	printf("Test\n");
+	GiveGoldCheat();
+	MaxSpellsCheat();
+	NextPlrLevel(*myplr);
 }
 
 // Main dll entry
@@ -322,6 +328,9 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 		nop(0x00492C78, 0x00492C9E);
 		// call our code
 		patch_call(0x00492C78, z_hook);
+
+		// Make MaxSpellsCheat give all the spells (by removing "can learn" check)
+		nop(0x0042CF35, 0x0042CF49);
 
 		// diabloui modification
 		// Make Single Player text gold instead of gray
