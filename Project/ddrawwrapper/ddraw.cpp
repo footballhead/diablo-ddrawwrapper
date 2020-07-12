@@ -286,6 +286,11 @@ BOOL __fastcall catacombs_stairs_fix(int entry)
 	return doneflag;
 }
 
+void __fastcall z_hook()
+{
+	printf("Test\n");
+}
+
 // Main dll entry
 BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
@@ -311,6 +316,12 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 		// Store return value
 		constexpr BYTE mov_doneflag_eax[] = { 0x89, 0x45, 0xFC };
 		patch_bytes(0x0048118C + sizeof(mov_ecx_entry) + 5, mov_doneflag_eax, sizeof(mov_doneflag_eax));
+
+		// Call our own function when Z is pressed
+		// Remove existing code
+		nop(0x00492C78, 0x00492C9E);
+		// call our code
+		patch_call(0x00492C78, z_hook);
 
 		// diabloui modification
 		// Make Single Player text gold instead of gray
