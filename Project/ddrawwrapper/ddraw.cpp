@@ -184,6 +184,21 @@ LRESULT CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     return CallWindowProc(lpDD->lpPrevWndFunc, hwnd, message, wParam, lParam);
 }
 
+// From Pre-ablo
+template <typename T>
+bool patch(unsigned __int32 addr_to_patch, T const& new_val)
+{
+	// If we don't turn the .text address to be PAGE_EXECUTE_READWRITE then the game crashes
+	DWORD oldProtect = 0;
+	if (!VirtualProtect(reinterpret_cast<void*>(addr_to_patch), sizeof(T), PAGE_EXECUTE_READWRITE, &oldProtect)) {
+		printf("%s: failed to mark address +xrw: 0x%X\n", __func__, addr_to_patch);
+		return false;
+	}
+	// Do the actual patch
+	*(T*)(addr_to_patch) = new_val;
+	return true;
+}
+
 // Main dll entry
 BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
@@ -193,6 +208,11 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 	{
 	// Initial process attach
 	case DLL_PROCESS_ATTACH:
+		// Remove CD requirement, allowing local DIABDAT.MPQ
+		// Change CD parameter on SFileOpenArchive from 1 to 0.
+		// Requires modifying push 1 to push 0
+		patch<unsigned __int8>(0x0042DD55 + 1, 0);
+
 		// Store module handle
 		hMod = hModule;
 
