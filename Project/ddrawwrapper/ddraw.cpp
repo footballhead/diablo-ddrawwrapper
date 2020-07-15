@@ -243,6 +243,9 @@ auto const GiveGoldCheat = reinterpret_cast<void(__fastcall*)(void)>(0x0042CB9C)
 auto const MaxSpellsCheat = reinterpret_cast<void(__fastcall*)(void)>(0x0042CF13);
 auto const NextPlrLevel = reinterpret_cast<void(__fastcall*)(int)>(0x0046B9CC);
 auto const StartGame = reinterpret_cast<BOOL (__fastcall*)(BOOL, BOOL)>(0x00490F61);
+auto const LoadLvlGFX = reinterpret_cast<void(__fastcall*)(void)>(0x004931A7);
+// Differs from Devilution in that additional debug info (3rd param is lineno, 4th is func)
+auto const LoadFileInMem = reinterpret_cast<BYTE*(__fastcall*)(char*, DWORD*, DWORD, const char*)>(0x00490A37);
 
 auto const currlevel = reinterpret_cast<BYTE* const>(0x0057CDA8);
 auto const USTAIRS = reinterpret_cast<BYTE* const>(0x004DA5C8);
@@ -253,6 +256,11 @@ auto const ViewX = reinterpret_cast<DWORD* const>(0x00590B1C);
 auto const myplr = reinterpret_cast<int* const>(0x0062D88C);
 auto const gszHero = reinterpret_cast<char* const>(0x0061D630);
 auto const gbMaxPlayers = reinterpret_cast<BYTE* const>(0x006000E0);
+auto const leveltype = reinterpret_cast<BYTE* const>(0x0057CDA4);
+auto const pDungeonCels = reinterpret_cast<BYTE** const>(0x0057F6CC);
+auto const pMegaTiles = reinterpret_cast<BYTE** const>(0x00578C90);
+auto const pLevelPieces = reinterpret_cast<BYTE** const>(0x00578C94);
+auto const pSpecialCels = reinterpret_cast<BYTE** const>(0x005880E4);
 
 HMODULE diabloui_dll = NULL;
 // The void*s are functions but the actual signatures shouldn't matter
@@ -327,6 +335,18 @@ void __fastcall singleplayer_menu_hook()
 	}
 }
 
+void LoadLvlGFX_wrapper()
+{
+	if (*leveltype == 3) { // 3 == caves
+		*pDungeonCels = LoadFileInMem("Levels\\L3Data\\L3.CEL", NULL, __LINE__, __FUNCTION__);
+		*pMegaTiles = LoadFileInMem("Levels\\L3Data\\L3.TIL", NULL, __LINE__, __FUNCTION__);
+		*pLevelPieces = LoadFileInMem("Levels\\L3Data\\L3.MIN", NULL, __LINE__, __FUNCTION__);
+		*pSpecialCels = LoadFileInMem("Levels\\L1Data\\L1S.CEL", NULL, __LINE__, __FUNCTION__);
+		return;
+	}
+	LoadLvlGFX();
+}
+
 // Main dll entry
 BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
@@ -369,9 +389,16 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 		nop(0x0043A21B, 0x0043A228);
 		// Make single player option call our func
 		patch_call(0x0043A21B, singleplayer_menu_hook);
+		// TODO Storm changes to make this work
 
 		// bone spirit uses MFILE_FIRERUN
 		patch<BYTE>(0x004C60FE, 0x24);
+
+		// poison water
+		// Extend LoadLvlGFX to include caves tileset
+		patch_call(0x00493502, LoadLvlGFX_wrapper);
+		// Remove reward (crashes because unique item #88 doesn't exist)
+		nop(0x0045987F, 0x004598B3);
 
 		// diabloui modification
 		// Make Single Player text gold instead of gray
