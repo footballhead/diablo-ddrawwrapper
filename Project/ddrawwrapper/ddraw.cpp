@@ -370,6 +370,9 @@ BOOL APIENTRY DllMain( HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpRese
 		// Make single player option call our func
 		patch_call(0x0043A21B, singleplayer_menu_hook);
 
+		// bone spirit uses MFILE_FIRERUN
+		patch<BYTE>(0x004C60FE, 0x24);
+
 		// diabloui modification
 		// Make Single Player text gold instead of gray
 		patch<BYTE>(0x100034E4 + 1, 6);
